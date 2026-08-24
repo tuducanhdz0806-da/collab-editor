@@ -1,6 +1,7 @@
 import http from 'http'
 import express from 'express'
 import { WebSocketServer } from 'ws'
+import { setupWSConnection } from './setup-connection.js'
 
 const app = express()
 app.use(express.json())
@@ -24,9 +25,6 @@ const wss = new WebSocketServer({ noServer: true })
 server.on('upgrade', (req, socket, head) => {
   wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req))
 })
-wss.on('connection', (ws) => {
-  console.log('client connected (chưa xử lý sync — Phần 6)')
-  ws.on('close', () => console.log('client disconnected'))
-})
+wss.on('connection', (ws, req) => setupWSConnection(ws, req))
 
 server.listen(1234, () => console.log('Server on http://localhost:1234'))

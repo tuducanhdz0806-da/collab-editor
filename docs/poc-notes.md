@@ -24,3 +24,11 @@
   hoặc hai trình duyệt khác nhau.
 - Rút ra: "offline-first" ở đây có 2 tầng — cùng máy thì BroadcastChannel lo,
   khác máy thì cần server + merge khi reconnect.
+
+  ## Hai người gõ cùng vị trí (offline) rồi merge
+- Kết quả: KHÔNG mất chữ, hai đoạn thành hai dòng riêng, hai tab hội tụ giống hệt.
+- Lý do: CRDT giữ cả hai edit và sắp thứ tự xác định; vì ProseMirror lưu văn bản
+  theo node paragraph nên merge ở mức khối -> hai dòng (nếu cùng 1 paragraph thì
+  sẽ xen kẽ thành một dòng).
+- Rút ra: CRDT đảm bảo "không mất + hội tụ", KHÔNG đảm bảo khớp ý người dùng.
+  Đây là bản chất xung đột ngữ nghĩa, không phải lỗi.

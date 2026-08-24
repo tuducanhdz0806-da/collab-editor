@@ -5,18 +5,15 @@ import * as awarenessProtocol from 'y-protocols/awareness'
 import { getYDoc, closeYDocIfEmpty } from './doc-registry.js'
 import { messageSync, messageAwareness } from './ws-shared-doc.js'
 
-export function setupWSConnection(conn, req) {
+export async function setupWSConnection(conn, req) {
   conn.binaryType = 'arraybuffer'
 
-  // Tên phòng = phần path của URL. Client y-websocket nối thành ws://host/<room>
   const room = decodeURIComponent((req.url || '/').slice(1).split('?')[0]) || 'default'
-  const doc = getYDoc(room)
+  const doc = await getYDoc(room)
   doc.conns.set(conn, new Set())
 
-  // Nhận message từ client
   conn.on('message', (message) => messageListener(conn, doc, new Uint8Array(message)))
 
-  // Khi client rời: dọn kết nối, rồi giải phóng phòng nếu trống
   conn.on('close', () => {
     doc.closeConn(conn)
     closeYDocIfEmpty(room, doc)

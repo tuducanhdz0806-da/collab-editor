@@ -32,3 +32,7 @@
   sẽ xen kẽ thành một dòng).
 - Rút ra: CRDT đảm bảo "không mất + hội tụ", KHÔNG đảm bảo khớp ý người dùng.
   Đây là bản chất xung đột ngữ nghĩa, không phải lỗi.
+
+  ## Bẫy khi cắm persistence
+- Phải loadDoc TRƯỚC khi đăng ký doc.on('update'), nếu không update vừa nạp bị lưu lại -> nhân đôi.
+- Race condition: 2 người mở cùng lúc -> lưu Promise<Doc> trong registry để chỉ load DB 1 lần.

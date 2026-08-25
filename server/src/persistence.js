@@ -55,6 +55,11 @@ export async function flushDocument(docName, doc) {
   })
 }
 
+// Xóa toàn bộ nội dung (update/snapshot) của một document
+export async function deleteDocData(docName) {
+  await updates.deleteMany({ docName })
+}
+
 // Cho phép main.js dùng collection documents để viết REST API
 export function docsCollection() {
   return documents

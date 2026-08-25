@@ -5,7 +5,7 @@ import bcrypt from 'bcrypt'
 import { ObjectId } from 'mongodb'
 import { WebSocketServer } from 'ws'
 import { setupWSConnection } from './setup-connection.js'
-import { initPersistence, docsCollection, usersCollection } from './persistence.js'
+import { initPersistence, docsCollection, usersCollection, deleteDocData } from './persistence.js'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me'
 
@@ -105,7 +105,9 @@ async function main() {
 
   // Xóa document
   app.delete('/docs/:id', auth, async (req, res) => {
-    await docsCollection().deleteOne({ _id: new ObjectId(req.params.id) })
+    const id = req.params.id
+    await docsCollection().deleteOne({ _id: new ObjectId(id) })
+    await deleteDocData(id) // xóa luôn nội dung binary trong doc_updates
     res.json({ ok: true })
   })
 

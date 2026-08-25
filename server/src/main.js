@@ -1,9 +1,12 @@
 import http from 'http'
 import express from 'express'
+import jwt from 'jsonwebtoken'
 import { ObjectId } from 'mongodb'
 import { WebSocketServer } from 'ws'
 import { setupWSConnection } from './setup-connection.js'
 import { initPersistence, docsCollection } from './persistence.js'
+
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me'
 
 async function main() {
   await initPersistence() // kết nối Mongo TRƯỚC khi nhận client
@@ -23,21 +26,41 @@ async function main() {
   // Route kiểm tra server sống
   app.get('/health', (_req, res) => res.send('ok'))
 
+  // Đăng nhập tối giản: chỉ cần tên -> cấp JWT (chưa có mật khẩu)
+  app.post('/auth/login', (req, res) => {
+    const username = (req.body?.username || '').trim()
+    if (!username) return res.status(400).json({ error: 'username required' })
+    const token = jwt.sign({ sub: username, name: username }, JWT_SECRET, { expiresIn: '7d' })
+    res.json({ token })
+  })
+
+  // Middleware: chặn REST nếu không có token hợp lệ
+  function auth(req, res, next) {
+    const header = req.headers.authorization || ''
+    const token = header.startsWith('Bearer ') ? header.slice(7) : null
+    try {
+      req.user = jwt.verify(token, JWT_SECRET)
+      next()
+    } catch {
+      res.status(401).json({ error: 'unauthorized' })
+    }
+  }
+
    // Danh sách document (mới nhất trước)
-  app.get('/docs', async (_req, res) => {
+  app.get('/docs', auth, async (_req, res) => {
     const list = await docsCollection().find().sort({ createdAt: -1 }).toArray()
     res.json(list.map((d) => ({ id: d._id.toString(), title: d.title })))
   })
 
   // Tạo document mới
-  app.post('/docs', async (req, res) => {
+  app.post('/docs', auth, async (req, res) => {
     const title = (req.body?.title || 'Untitled').toString()
     const result = await docsCollection().insertOne({ title, createdAt: new Date() })
     res.json({ id: result.insertedId.toString(), title })
   })
 
   // Xóa document
-  app.delete('/docs/:id', async (req, res) => {
+  app.delete('/docs/:id', auth, async (req, res) => {
     await docsCollection().deleteOne({ _id: new ObjectId(req.params.id) })
     res.json({ ok: true })
   })
@@ -47,7 +70,20 @@ async function main() {
   // WebSocket dùng chung HTTP server; tự bắt 'upgrade' để sau này chèn auth (Phần 9)
   const wss = new WebSocketServer({ noServer: true })
   server.on('upgrade', (req, socket, head) => {
-    wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req))
+    try {
+      // Token được client đính vào query string: ws://host/<room>?token=...
+      const url = new URL(req.url, 'http://localhost')
+      const token = url.searchParams.get('token')
+      const user = jwt.verify(token, JWT_SECRET) // sai/thiếu -> ném lỗi
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        ws.user = user // đính user vào kết nối để dùng sau (phân quyền, tên...)
+        wss.emit('connection', ws, req)
+      })
+    } catch {
+      // Từ chối TRƯỚC khi WebSocket được thiết lập
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n')
+      socket.destroy()
+    }
   })
   wss.on('connection', (ws, req) => setupWSConnection(ws, req))
 

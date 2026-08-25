@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+/* Con trỏ của người dùng khác (màu lấy inline theo user.color) */
+.tiptap .collaboration-carets__caret {
+  position: relative;
+  margin-left: -1px;
+  margin-right: -1px;
+  border-left: 1px solid currentColor;
+  border-right: 1px solid currentColor;
+  word-break: normal;
+  pointer-events: none;
+}
+/* Tên người dùng nổi phía trên con trỏ */
+.tiptap .collaboration-carets__label {
+  position: absolute;
+  top: -1.4em;
+  left: -1px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: normal;
+  color: #fff;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px 3px 3px 0;
+  white-space: nowrap;
+  user-select: none;
+}

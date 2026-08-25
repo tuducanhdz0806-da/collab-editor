@@ -29,12 +29,20 @@ function getRoom(room) {
 
 export default function Editor({ room }) {
   const [status, setStatus] = useState('connecting')
+  const [synced, setSynced] = useState(false)
   const { ydoc, provider } = getRoom(room)
 
   useEffect(() => {
     const onStatus = (e) => setStatus(e.status)
+    const onSync = (isSynced) => setSynced(isSynced)
     provider.on('status', onStatus)
-    return () => provider.off('status', onStatus)   // chỉ gỡ listener, KHÔNG destroy
+    provider.on('sync', onSync)
+    // provider có thể đã sync xong trước khi effect chạy -> đọc trạng thái hiện tại
+    if (provider.synced) setSynced(true)
+    return () => {
+      provider.off('status', onStatus)
+      provider.off('sync', onSync)
+    }
   }, [provider])
 
   const editor = useEditor(
@@ -61,10 +69,17 @@ export default function Editor({ room }) {
       <div className={`px-3 py-1.5 text-xs bg-gray-100 ${statusColor}`}>
         {status} · {getUsername()}
       </div>
-      <EditorContent
-        editor={editor}
-        className="[&_.ProseMirror]:p-4 [&_.ProseMirror]:min-h-60 [&_.ProseMirror]:outline-none"
-      />
+      <div className="relative">
+        <EditorContent
+          editor={editor}
+          className="[&_.ProseMirror]:p-4 [&_.ProseMirror]:min-h-60 [&_.ProseMirror]:outline-none"
+        />
+        {!synced && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/70 text-sm text-gray-500">
+            Đang tải nội dung…
+          </div>
+        )}
+      </div>
     </div>
   )
 }

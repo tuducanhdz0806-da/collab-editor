@@ -49,9 +49,9 @@ export default function DocList() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto my-10 px-4 font-sans">
+    <div className="max-w-3xl mx-auto my-6 sm:my-10 px-4 font-sans">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Documents</h1>
+        <h1 className="text-xl sm:text-2xl font-bold">Documents</h1>
         <button
           onClick={startCreating}
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"

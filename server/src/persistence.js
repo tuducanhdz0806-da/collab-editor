@@ -5,6 +5,7 @@ const uri = process.env.MONGO_URI || 'mongodb://localhost:27017'
 const client = new MongoClient(uri)
 let updates    // collection lưu các bản update (binary)
 let documents  // collection lưu metadata của document
+let users      // collection lưu tài khoản người dùng
 
 // Gọi 1 lần khi server khởi động
 export async function initPersistence() {
@@ -12,7 +13,9 @@ export async function initPersistence() {
   const db = client.db('collab_editor')
   updates = db.collection('doc_updates')
   documents = db.collection('documents')
+  users = db.collection('users')
   await updates.createIndex({ docName: 1, clock: 1 })
+  await users.createIndex({ username: 1 }, { unique: true })
   console.log('MongoDB connected')
 }
 
@@ -55,4 +58,9 @@ export async function flushDocument(docName, doc) {
 // Cho phép main.js dùng collection documents để viết REST API
 export function docsCollection() {
   return documents
+}
+
+// Cho phép main.js dùng collection users cho auth
+export function usersCollection() {
+  return users
 }

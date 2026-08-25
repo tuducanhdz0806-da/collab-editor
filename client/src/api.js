@@ -1,23 +1,35 @@
+import { getToken } from './auth'
+
 const BASE = 'http://localhost:1234'
 
-// Lấy danh sách document
+// Header kèm token cho mọi request cần xác thực
+function authHeaders(extra = {}) {
+  return {
+    Authorization: `Bearer ${getToken()}`,
+    ...extra,
+  }
+}
+
 export async function listDocs() {
-  const res = await fetch(`${BASE}/docs`)
+  const res = await fetch(`${BASE}/docs`, {
+    headers: authHeaders(),
+  })
   return res.json()
 }
 
-// Tạo document mới, trả về { id, title }
 export async function createDoc(title) {
   const res = await fetch(`${BASE}/docs`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ title }),
   })
   return res.json()
 }
 
-// Xóa document theo id
 export async function deleteDoc(id) {
-  const res = await fetch(`${BASE}/docs/${id}`, { method: 'DELETE' })
+  const res = await fetch(`${BASE}/docs/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  })
   return res.json()
 }

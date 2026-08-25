@@ -6,9 +6,9 @@ import CollaborationCaret from '@tiptap/extension-collaboration-caret'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 import { IndexeddbPersistence } from 'y-indexeddb'
+import { getToken, getUsername } from './auth'
 
 const COLORS = ['#f783ac', '#4dabf7', '#38d9a9', '#ffa94d', '#9775fa']
-const NAME = 'User-' + Math.floor(Math.random() * 1000)
 const COLOR = COLORS[Math.floor(Math.random() * COLORS.length)]
 
 // Giữ doc/provider theo room ở ngoài vòng đời React -> không bị tạo/hủy lặp ở dev
@@ -18,7 +18,9 @@ function getRoom(room) {
   if (!entry) {
     const ydoc = new Y.Doc()
     const idb = new IndexeddbPersistence(room, ydoc)   // lưu local
-    const provider = new WebsocketProvider('ws://localhost:1234', room, ydoc)
+    const provider = new WebsocketProvider('ws://localhost:1234', room, ydoc, {
+      params: { token: getToken() || '' },
+    })
     entry = { ydoc, provider, idb }
     cache.set(room, entry)
   }
@@ -40,7 +42,10 @@ export default function Editor({ room }) {
       extensions: [
         StarterKit.configure({ undoRedo: false }),
         Collaboration.configure({ document: ydoc }),
-        CollaborationCaret.configure({ provider, user: { name: NAME, color: COLOR } }),
+        CollaborationCaret.configure({
+          provider,
+          user: { name: getUsername() || 'Ẩn danh', color: COLOR },
+        }),
       ],
     },
     [ydoc, provider],
@@ -54,7 +59,7 @@ export default function Editor({ room }) {
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden">
       <div className={`px-3 py-1.5 text-xs bg-gray-100 ${statusColor}`}>
-        {status} · {NAME}
+        {status} · {getUsername()}
       </div>
       <EditorContent
         editor={editor}

@@ -1,10 +1,11 @@
 import http from 'http'
 import express from 'express'
 import jwt from 'jsonwebtoken'
+import bcrypt from 'bcrypt'
 import { ObjectId } from 'mongodb'
 import { WebSocketServer } from 'ws'
 import { setupWSConnection } from './setup-connection.js'
-import { initPersistence, docsCollection } from './persistence.js'
+import { initPersistence, docsCollection, usersCollection } from './persistence.js'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me'
 
@@ -26,12 +27,55 @@ async function main() {
   // Route kiểm tra server sống
   app.get('/health', (_req, res) => res.send('ok'))
 
-  // Đăng nhập tối giản: chỉ cần tên -> cấp JWT (chưa có mật khẩu)
-  app.post('/auth/login', (req, res) => {
+  // Đăng ký: tạo tài khoản mới với mật khẩu đã hash
+  app.post('/auth/register', async (req, res) => {
     const username = (req.body?.username || '').trim()
-    if (!username) return res.status(400).json({ error: 'username required' })
-    const token = jwt.sign({ sub: username, name: username }, JWT_SECRET, { expiresIn: '7d' })
-    res.json({ token })
+    const password = req.body?.password || ''
+    if (!username || !password) {
+      return res.status(400).json({ error: 'username and password required' })
+    }
+    if (password.length < 4) {
+      return res.status(400).json({ error: 'password too short (min 4)' })
+    }
+    try {
+      const passwordHash = await bcrypt.hash(password, 10)
+      const result = await usersCollection().insertOne({
+        username,
+        passwordHash,
+        createdAt: new Date(),
+      })
+      const token = jwt.sign(
+        { sub: result.insertedId.toString(), name: username },
+        JWT_SECRET,
+        { expiresIn: '7d' },
+      )
+      res.json({ token, username })
+    } catch (err) {
+      if (err.code === 11000) {
+        // vi phạm unique index -> username đã tồn tại
+        return res.status(409).json({ error: 'username already exists' })
+      }
+      throw err
+    }
+  })
+
+  // Đăng nhập: tra user, so mật khẩu hash, đúng thì cấp JWT
+  app.post('/auth/login', async (req, res) => {
+    const username = (req.body?.username || '').trim()
+    const password = req.body?.password || ''
+    if (!username || !password) {
+      return res.status(400).json({ error: 'username and password required' })
+    }
+    const user = await usersCollection().findOne({ username })
+    if (!user) return res.status(401).json({ error: 'invalid credentials' })
+    const ok = await bcrypt.compare(password, user.passwordHash)
+    if (!ok) return res.status(401).json({ error: 'invalid credentials' })
+    const token = jwt.sign(
+      { sub: user._id.toString(), name: username },
+      JWT_SECRET,
+      { expiresIn: '7d' },
+    )
+    res.json({ token, username })
   })
 
   // Middleware: chặn REST nếu không có token hợp lệ

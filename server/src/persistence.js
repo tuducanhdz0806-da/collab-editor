@@ -3,13 +3,15 @@ import * as Y from 'yjs'
 
 const uri = process.env.MONGO_URI || 'mongodb://localhost:27017'
 const client = new MongoClient(uri)
-let updates // collection lưu các bản update (binary)
+let updates    // collection lưu các bản update (binary)
+let documents  // collection lưu metadata của document
 
 // Gọi 1 lần khi server khởi động
 export async function initPersistence() {
   await client.connect()
   const db = client.db('collab_editor')
   updates = db.collection('doc_updates')
+  documents = db.collection('documents')
   await updates.createIndex({ docName: 1, clock: 1 })
   console.log('MongoDB connected')
 }
@@ -48,4 +50,9 @@ export async function flushDocument(docName, doc) {
     value: new Binary(snapshot),
     createdAt: new Date(),
   })
+}
+
+// Cho phép main.js dùng collection documents để viết REST API
+export function docsCollection() {
+  return documents
 }

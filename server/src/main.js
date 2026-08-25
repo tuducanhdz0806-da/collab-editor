@@ -1,8 +1,9 @@
 import http from 'http'
 import express from 'express'
+import { ObjectId } from 'mongodb'
 import { WebSocketServer } from 'ws'
 import { setupWSConnection } from './setup-connection.js'
-import { initPersistence } from './persistence.js'
+import { initPersistence, docsCollection } from './persistence.js'
 
 async function main() {
   await initPersistence() // kết nối Mongo TRƯỚC khi nhận client
@@ -21,6 +22,25 @@ async function main() {
 
   // Route kiểm tra server sống
   app.get('/health', (_req, res) => res.send('ok'))
+
+   // Danh sách document (mới nhất trước)
+  app.get('/docs', async (_req, res) => {
+    const list = await docsCollection().find().sort({ createdAt: -1 }).toArray()
+    res.json(list.map((d) => ({ id: d._id.toString(), title: d.title })))
+  })
+
+  // Tạo document mới
+  app.post('/docs', async (req, res) => {
+    const title = (req.body?.title || 'Untitled').toString()
+    const result = await docsCollection().insertOne({ title, createdAt: new Date() })
+    res.json({ id: result.insertedId.toString(), title })
+  })
+
+  // Xóa document
+  app.delete('/docs/:id', async (req, res) => {
+    await docsCollection().deleteOne({ _id: new ObjectId(req.params.id) })
+    res.json({ ok: true })
+  })
 
   const server = http.createServer(app)
 

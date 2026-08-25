@@ -131,7 +131,22 @@ async function main() {
       socket.destroy()
     }
   })
-  wss.on('connection', (ws, req) => setupWSConnection(ws, req))
+  wss.on('connection', (ws, req) => {
+    ws.isAlive = true
+    ws.on('pong', () => { ws.isAlive = true }) // client trả lời ping -> còn sống
+    setupWSConnection(ws, req)
+  })
+
+    // Cứ 30s: kết nối nào không phản hồi ping từ vòng trước -> coi như chết, dọn đi
+  const interval = setInterval(() => {
+    wss.clients.forEach((ws) => {
+      if (ws.isAlive === false) return ws.terminate()
+      ws.isAlive = false
+      ws.ping()
+    })
+  }, 30000)
+
+  wss.on('close', () => clearInterval(interval))
 
   server.listen(1234, () => console.log('Server on http://localhost:1234'))
 }
